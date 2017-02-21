@@ -41,7 +41,7 @@ while ptime < 10:
 
         # Receive the server response
         message, serverAdress = clientSocket.recvfrom(1024)
-
+        message=message.decode('utf-8')
 	    # Record the "received time"
         recTime=time.time()
         recTimeStr=time.asctime()
