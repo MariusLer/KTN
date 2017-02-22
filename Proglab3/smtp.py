@@ -18,7 +18,7 @@ port=25 # found on internet
 clientSocket.connect((mailserver,port))
 #Fill in end
 
-recv = clientSocket.recv(1024)
+recv = clientSocket.recv(1024).decode('utf-8')
 print(recv)
 if recv[:3] != '220':
 	print('220 reply not received from server.')
@@ -33,17 +33,15 @@ if recv1[:3] != '250':
 
 # Send MAIL FROM command and print server response.
 # Fill in start
-mailfrom = "MAIL FROM: <arnold@stud.ntnu.no>"
+mailfrom = "MAIL FROM: <mariuler@stud.ntnu.no>\r\n"
 clientSocket.send(mailfrom.encode('utf-8'))
 recv2 = clientSocket.recv(1024).decode('utf-8')
 print(recv2)
-if recv1[:3] != '250':
-	print ('250 reply not received from server.')
 # Fill in end
 
 # Send RCPT TO command and print server response.
 # Fill in start
-rcptto = "RCPT TO: <mariuler@stud.ntnu.no>"
+rcptto = "RCPT TO: <mariuler@stud.ntnu.no>\r\n"
 clientSocket.send(rcptto.encode('utf-8'))
 recv3 = clientSocket.recv(1024).decode('utf-8')
 print(recv3)
@@ -51,7 +49,7 @@ print(recv3)
 
 # Send DATA command and print server response.
 # Fill in start
-datamsg="DATA"
+datamsg="DATA\r\n"
 clientSocket.send(datamsg.encode('utf-8'))
 recv4 = clientSocket.recv(1024).decode('utf-8')
 print(recv4)
@@ -71,7 +69,7 @@ print(recv6)
 
 # Send QUIT command and get server response.
 # Fill in start
-quitmsg="QUIT"
+quitmsg="QUIT\r\n"
 clientSocket.send(quitmsg.encode('utf-8'))
 recv7 = clientSocket.recv(1024).decode('utf-8')
 print(recv7)
