@@ -6,7 +6,7 @@ type ClientPayload struct {
 }
 
 type ServerPayload struct {
-	Timespamp string
+	Timestamp string
 	Sender    string
 	Response  string
 	Content   []string

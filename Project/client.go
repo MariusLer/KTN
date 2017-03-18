@@ -20,9 +20,10 @@ func main() {
 
 	inputCh := make(chan string)
 	incommingMsgCh := make(chan messages.ServerPayload)
+	closedConnCh := make(chan bool)
 
 	go inputListener(inputCh)
-	go messageListener(incommingMsgCh, conn)
+	go messageListener(incommingMsgCh, conn, closedConnCh)
 
 	for {
 		select {
@@ -35,6 +36,8 @@ func main() {
 			conn.Write(bytes)
 		case msg := <-incommingMsgCh:
 			fmt.Println("msg received yo", msg)
+		case <-closedConnCh:
+			return
 		}
 	}
 }
@@ -52,16 +55,17 @@ func inputListener(inputCh chan<- string) {
 	}
 }
 
-func messageListener(incommingMsgCh chan<- messages.ServerPayload, conn net.Conn) {
+func messageListener(incommingMsgCh chan<- messages.ServerPayload, conn net.Conn, closedConnCh chan<- bool) {
 	buffer := make([]byte, 2048)
 	var msg messages.ServerPayload
 	for {
 		bytes, err := conn.Read(buffer)
 		if err != nil {
-			conn.Close()
+			fmt.Println("Closed connection/logged out")
+			closedConnCh <- true
 			return
 		}
-		errr := json.Unmarshal(buffer[:bytes], msg)
+		errr := json.Unmarshal(buffer[:bytes], &msg)
 		if errr != nil {
 			fmt.Println("Error Unmarshall", err)
 			continue
@@ -82,18 +86,27 @@ func connectToServer(ipAndPort string) net.Conn {
 }
 
 func handleInput(input string) messages.ClientPayload {
+	fmt.Println(input)
 	splitInput := strings.Split(input, " ")
 	var msg messages.ClientPayload
 	reqBeg := strings.Index(input, "\\")
 	if reqBeg == 0 {
 		reqEnd := strings.Index(input, " ")
-		msg.Request = input[reqBeg+1 : reqEnd]
-		if len(splitInput) != 1 {
-			msg.Content = input[reqEnd+1:]
+		fmt.Println(reqBeg, reqEnd)
+		if reqEnd == -1 {
+			msg.Request = input[reqBeg+1:]
+		} else {
+			msg.Request = input[reqBeg+1 : reqEnd]
+		}
+		if msg.Request == "login" {
+			if len(splitInput) != 1 {
+				msg.Content = input[reqEnd+1:]
+			}
 		}
 	} else {
 		msg.Request = "msg"
 		msg.Content = "input"
 	}
+	fmt.Println(msg)
 	return msg
 }
