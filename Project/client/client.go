@@ -79,7 +79,7 @@ func inputListener(inputCh chan<- string) {
 }
 
 func messageListener(incommingMsgCh chan<- messages.ServerPayload, incommingHistoryCh chan<- messages.HistoryPayload, conn net.Conn, closedConnCh chan<- bool) {
-	buffer := make([]byte, 15000)
+	buffer := make([]byte, 102400) // huge buffer
 	var msg messages.ServerPayload
 	var historyMsg messages.HistoryPayload
 	for {
@@ -92,10 +92,7 @@ func messageListener(incommingMsgCh chan<- messages.ServerPayload, incommingHist
 		// This part is messy. There are probably much better solutions
 		errr := json.Unmarshal(buffer[:bytes], &msg)
 		if errr != nil {
-			errrr := json.Unmarshal(buffer[:bytes], &historyMsg)
-			if errrr != nil {
-				fmt.Println("Error unmarshalling")
-			}
+			json.Unmarshal(buffer[:bytes], &historyMsg)
 			incommingHistoryCh <- historyMsg
 			continue
 		}
