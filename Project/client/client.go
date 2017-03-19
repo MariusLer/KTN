@@ -79,7 +79,7 @@ func inputListener(inputCh chan<- string) {
 }
 
 func messageListener(incommingMsgCh chan<- messages.ServerPayload, incommingHistoryCh chan<- messages.HistoryPayload, conn net.Conn, closedConnCh chan<- bool) {
-	buffer := make([]byte, 102400) // huge buffer
+	buffer := make([]byte, 1048576) // huge buffer 1 MiB
 	var msg messages.ServerPayload
 	var historyMsg messages.HistoryPayload
 	for {
