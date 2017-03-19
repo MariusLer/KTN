@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"./msg"
+	"github.com/mariusler/KTN/Project/msg"
 )
 
 func main() {

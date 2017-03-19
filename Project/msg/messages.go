@@ -9,5 +9,12 @@ type ServerPayload struct {
 	Timestamp string
 	Sender    string
 	Response  string
-	Content   []string
+	Content   string
+}
+
+type HistoryPayload struct {
+	Timestamp string
+	Sender    string
+	Response  string
+	Content   []ServerPayload
 }

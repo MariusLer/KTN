@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode"
 
-	"./msg"
+	"github.com/mariusler/KTN/Project/msg"
 )
 
 type incommingMsg struct {
