@@ -18,6 +18,8 @@ type incommingMsg struct {
 }
 
 func main() {
+	ipAndPort := "127.0.0.1:30000"
+
 	clients := make(map[net.Conn]string)
 	msgHistory := make([]messages.ServerPayload, 0)
 
@@ -25,7 +27,7 @@ func main() {
 	inCommingMsgCh := make(chan incommingMsg)
 	removeDeadClientCh := make(chan net.Conn)
 
-	go connListener(newConnCh)
+	go connListener(newConnCh, ipAndPort)
 
 	for {
 		select {
@@ -49,6 +51,7 @@ func main() {
 						} else {
 							clients[conn] = msg.Content
 							sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: "Login succesful"}, conn)
+							time.Sleep(time.Millisecond * 5) // was getting an error unmarshalling sometimes. I believe it was because the buffer got filled with two messages at the same time
 							sendChatHistory(msgHistory, conn)
 						}
 					} else {
@@ -65,14 +68,22 @@ func main() {
 					conn.Close()
 				}
 			case "names":
-				names := getNameList(clients)
-				sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: names}, conn)
+				if clients[conn] == "" {
+					sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Not logged in"}, conn)
+				} else {
+					names := getNameList(clients)
+					sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: names}, conn)
+				}
 			case "help":
 				sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: "The commands supported are login <username> logout names help and msg <message>, use backslash in front of the commands"}, conn)
 			case "msg":
-				response := messages.ServerPayload{Timestamp: time.Now().String(), Sender: clients[conn], Response: "message", Content: msg.Content}
-				msgHistory = append(msgHistory, response)
-				broadcastMsg(clients, response)
+				if clients[conn] == "" {
+					sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Not logged in"}, conn)
+				} else {
+					response := messages.ServerPayload{Timestamp: time.Now().String(), Sender: clients[conn], Response: "message", Content: msg.Content}
+					msgHistory = append(msgHistory, response)
+					broadcastMsg(clients, response)
+				}
 			default:
 				sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Unknown command"}, conn)
 			}
@@ -80,8 +91,10 @@ func main() {
 	}
 }
 func broadcastMsg(clients map[net.Conn]string, msg messages.ServerPayload) {
-	for conn := range clients {
-		sendMessage(msg, conn)
+	for conn, name := range clients {
+		if name != "" {
+			sendMessage(msg, conn)
+		}
 	}
 }
 
@@ -119,9 +132,11 @@ func serverPayloadToNetworkMsg(msg messages.ServerPayload) []byte {
 }
 
 func getNameList(clients map[net.Conn]string) string {
-	var names string
+	var names = "List of names: \n"
 	for _, name := range clients {
-		names += name + "\n"
+		if name != "" {
+			names += name + "\n"
+		}
 	}
 	return names
 }
@@ -135,8 +150,8 @@ func isNameTaken(clients map[net.Conn]string, userName string) bool {
 	return false
 }
 
-func connListener(newConnCh chan<- net.Conn) {
-	ln, err := net.Listen("tcp", "127.0.0.1:30000")
+func connListener(newConnCh chan<- net.Conn, ipAndPort string) {
+	ln, err := net.Listen("tcp", ipAndPort)
 	if err != nil {
 		fmt.Println("Error")
 		os.Exit(1)

@@ -40,7 +40,7 @@ func main() {
 		case hMsg := <-incommingHistoryCh:
 			var oldMessage messages.ServerPayload
 			if len(hMsg.Content) != 0 {
-				fmt.Println("At :", hMsg.Timestamp[:19], "Chat history received from server, listing it now")
+				fmt.Print("[", hMsg.Timestamp[11:16], "] ", "<", "Server", "> ", hMsg.Response, " : ", "Chat history received, listing it below", "\n")
 			}
 			for _, byteObject := range hMsg.Content {
 				err := json.Unmarshal(byteObject, &oldMessage)
@@ -59,9 +59,9 @@ func main() {
 
 func printMsg(msg messages.ServerPayload) {
 	if msg.Sender != "Server" {
-		fmt.Println("At :", msg.Timestamp[:19], "User: ", msg.Sender, "Wrote :", msg.Content)
+		fmt.Print("[", msg.Timestamp[11:16], "] ", "<", msg.Sender, "> ", msg.Content, "\n")
 	} else {
-		fmt.Println("At :", msg.Timestamp[:19], "Server response :", msg.Response, "with content :", msg.Content)
+		fmt.Print("[", msg.Timestamp[11:16], "] ", "<", "Server", "> ", msg.Response, " : ", msg.Content, "\n")
 	}
 }
 
@@ -89,11 +89,12 @@ func messageListener(incommingMsgCh chan<- messages.ServerPayload, incommingHist
 			closedConnCh <- true
 			return
 		}
+		// This part is messy. There are probably much better solutions
 		errr := json.Unmarshal(buffer[:bytes], &msg)
 		if errr != nil {
 			errrr := json.Unmarshal(buffer[:bytes], &historyMsg)
 			if errrr != nil {
-				fmt.Println("Error unmarhsalling msg") // could probably have done this better
+				fmt.Println("Error unmarhsalling msg")
 				continue
 			}
 			incommingHistoryCh <- historyMsg
