@@ -16,5 +16,5 @@ type HistoryPayload struct {
 	Timestamp string
 	Sender    string
 	Response  string
-	Content   []ServerPayload
+	Content   [][]byte
 }

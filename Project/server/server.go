@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 	"unicode"
 
@@ -18,7 +19,7 @@ type incommingMsg struct {
 
 func main() {
 	clients := make(map[net.Conn]string)
-	//msgHistory := make([]messages.ServerPayload)
+	msgHistory := make([]messages.ServerPayload, 0)
 
 	newConnCh := make(chan net.Conn)
 	inCommingMsgCh := make(chan incommingMsg)
@@ -32,7 +33,7 @@ func main() {
 			clients[newConn] = ""
 			go clientListener(inCommingMsgCh, newConn, removeDeadClientCh)
 			fmt.Println("New client")
-			fmt.Println(clients)
+			fmt.Println("Map of clients", clients)
 		case deadConn := <-removeDeadClientCh:
 			fmt.Println("User :", clients[deadConn], " Logged off")
 			delete(clients, deadConn)
@@ -42,37 +43,79 @@ func main() {
 			switch msg.Request {
 			case "login":
 				if isValidUserName(msg.Content) {
-					if clients[conn] == "" { // ikke lurt her, gjør på nytt
-						clients[conn] = msg.Content
-						sendMessage(messages.ServerPayload{time.Now().String(), "Server", "info", []string{"Login succesful"}}, conn)
+					if clients[conn] == "" {
+						if isNameTaken(clients, msg.Content) {
+							sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Username taken"}, conn)
+						} else {
+							clients[conn] = msg.Content
+							sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: "Login succesful"}, conn)
+							sendChatHistory(msgHistory, conn)
+						}
 					} else {
-						sendMessage(messages.ServerPayload{time.Now().String(), "Server", "error", []string{"Already logged in"}}, conn)
+						sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Already logged in"}, conn)
 					}
-					if isNameTaken(clients, msg.Content) {
-						sendMessage(messages.ServerPayload{time.Now().String(), "Server", "error", []string{"Username taken"}}, conn)
-					}
+
 				} else {
-					sendMessage(messages.ServerPayload{time.Now().String(), "Server", "error", []string{"Username not valid"}}, conn)
+					sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Username not valid"}, conn)
 				}
 			case "logout":
 				if clients[conn] == "" {
-					sendMessage(messages.ServerPayload{time.Now().String(), "Server", "error", []string{"Not logged in"}}, conn)
+					sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Not logged in"}, conn)
 				} else {
 					conn.Close()
 				}
 			case "names":
 				names := getNameList(clients)
-				sendMessage(messages.ServerPayload{time.Now().String(), "Server", "info", []string{names}}, conn)
+				sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: names}, conn)
 			case "help":
+				sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "info", Content: "The commands supported are login <username> logout names help and msg <message>, use backslash in front of the commands"}, conn)
 			case "msg":
+				response := messages.ServerPayload{Timestamp: time.Now().String(), Sender: clients[conn], Response: "message", Content: msg.Content}
+				msgHistory = append(msgHistory, response)
+				broadcastMsg(clients, response)
+			default:
+				sendMessage(messages.ServerPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "error", Content: "Unknown command"}, conn)
 			}
 		}
 	}
+}
+func broadcastMsg(clients map[net.Conn]string, msg messages.ServerPayload) {
+	for conn := range clients {
+		sendMessage(msg, conn)
+	}
+}
+
+func sendChatHistory(msgHistory []messages.ServerPayload, conn net.Conn) {
+	var list = make([][]byte, len(msgHistory))
+	for index, msg := range msgHistory {
+		bytes, err := json.Marshal(msg)
+		if err != nil {
+			fmt.Println("Error json marshal history", err)
+			return
+		}
+		list[index] = bytes
+	}
+	msg := messages.HistoryPayload{Timestamp: time.Now().String(), Sender: "Server", Response: "History", Content: list}
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		fmt.Println("Error json marshal msg", err)
+		return
+	}
+	conn.Write(bytes)
 }
 
 func sendMessage(msg messages.ServerPayload, conn net.Conn) {
 	bytes := serverPayloadToNetworkMsg(msg)
 	conn.Write(bytes)
+}
+
+func serverPayloadToNetworkMsg(msg messages.ServerPayload) []byte {
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		fmt.Println("Error json Marshal", err)
+		return []byte("")
+	}
+	return bytes
 }
 
 func getNameList(clients map[net.Conn]string) string {
@@ -86,19 +129,10 @@ func getNameList(clients map[net.Conn]string) string {
 func isNameTaken(clients map[net.Conn]string, userName string) bool {
 	for _, name := range clients {
 		if name == userName {
-			return false
+			return true
 		}
 	}
-	return true
-}
-
-func serverPayloadToNetworkMsg(msg messages.ServerPayload) []byte {
-	bytes, err := json.Marshal(msg)
-	if err != nil {
-		fmt.Println("Error json Marshal", err)
-		return []byte("")
-	}
-	return bytes
+	return false
 }
 
 func connListener(newConnCh chan<- net.Conn) {
@@ -119,7 +153,7 @@ func connListener(newConnCh chan<- net.Conn) {
 	}
 }
 func isValidUserName(name string) bool {
-	if name == "" {
+	if name == "" || strings.ToLower(name) == "server" {
 		return false
 	}
 	for _, letter := range name {
