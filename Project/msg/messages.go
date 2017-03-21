@@ -1,20 +1,23 @@
 package messages
 
+// ClientPayload exported
 type ClientPayload struct {
-	Request string
-	Content string
+	Request string `json:"request"`
+	Content string `json:"content"`
 }
 
+// ServerPayload exported
 type ServerPayload struct {
-	Timestamp string
-	Sender    string
-	Response  string
-	Content   string
+	Timestamp string `json:"timestamp"`
+	Sender    string `json:"sender"`
+	Response  string `json:"response"`
+	Content   string `json:"content"`
 }
 
+// HistoryPayload Exported
 type HistoryPayload struct {
-	Timestamp string
-	Sender    string
-	Response  string
-	Content   [][]byte
+	Timestamp string   `json:"timestamp"`
+	Sender    string   `json:"sender"`
+	Response  string   `json:"response"`
+	Content   [][]byte `json:"content"`
 }
